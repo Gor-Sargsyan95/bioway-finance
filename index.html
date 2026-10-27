@@ -49,8 +49,8 @@
   </div>
 
   <script>
-    const URL = 'https://loovgtthxkehwqegkmmi.supabase.co';
-    const KEY = 'sb_publishable_grMpbwsdZWvBjagEwFfhPQ_OEA3B2OE';
+    const SB_URL = 'https://loovgtthxkehwqegkmmi.supabase.co';
+    const SB_KEY = 'sb_publishable_grMpbwsdZWvBjagEwFfhPQ_OEA3B2OE';
     let db = null;
     let user = null;
 
@@ -58,7 +58,7 @@
 
     function client() {
       if (!window.supabase) { msg('Библиотека не загрузилась'); return null; }
-      if (!db) db = window.supabase.createClient(URL, KEY);
+      if (!db) db = window.supabase.createClient(SB_URL, SB_KEY);
       return db;
     }
 
