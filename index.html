@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BioWay Finance — Учёт затрат и прибыли</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div id="app" class="max-w-4xl mx-auto p-4">
+    <!-- Login / Auth Screen -->
+    <div id="auth-screen" class="mt-10">
+      <div class="card p-6 max-w-md mx-auto">
+        <h1 class="text-2xl font-bold text-center text-pink-600 mb-2">BioWay Finance</h1>
+        <p class="text-center text-gray-600 mb-6">Учёт затрат и прибыли клуба</p>
+        <div id="auth-message" class="text-sm text-red-600 mb-3 hidden"></div>
+        <input id="email" type="email" placeholder="Email" class="w-full p-3 border rounded-lg mb-3">
+        <input id="password" type="password" placeholder="Пароль" class="w-full p-3 border rounded-lg mb-4">
+        <button onclick="signIn()" class="w-full bg-pink-600 text-white py-3 rounded-lg font-medium mb-2">Войти</button>
+        <button onclick="signUp()" class="w-full bg-gray-200 text-gray-800 py-3 rounded-lg font-medium">Зарегистрироваться</button>
+        <p class="text-xs text-center text-gray-500 mt-4">Для 3 партнёров. Каждый регистрируется со своим email.</p>
+      </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-screen" class="hidden">
+      <header class="flex justify-between items-center mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-pink-600">BioWay Finance</h1>
+          <p class="text-sm text-gray-500" id="user-email"></p>
+        </div>
+        <button onclick="signOut()" class="text-sm text-gray-600 hover:text-red-600">Выйти</button>
+      </header>
+
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="card p-4">
+          <div class="text-sm text-gray-500">Общие затраты</div>
+          <div class="text-2xl font-bold text-red-600" id="total-expenses">0 €</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-sm text-gray-500">Общие продажи</div>
+          <div class="text-2xl font-bold text-green-600" id="total-sales">0 €</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-sm text-gray-500">Прибыль</div>
+          <div class="text-2xl font-bold" id="total-profit">0 €</div>
+        </div>
+      </div>
+
+      <!-- Add Form -->
+      <div class="card p-5 mb-6">
+        <h2 class="font-semibold mb-4">Добавить запись</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <select id="entry-type" class="p-2 border rounded">
+            <option value="expense">Затрата</option>
+            <option value="sale">Продажа / Доход</option>
+          </select>
+          <input id="amount" type="number" step="0.01" placeholder="Сумма (€)" class="p-2 border rounded">
+          <input id="date" type="date" class="p-2 border rounded">
+          <select id="category" class="p-2 border rounded">
+            <option value="Билеты">Билеты</option>
+            <option value="Подарки">Подарки</option>
+            <option value="Еда">Еда</option>
+            <option value="Продукты и материалы">Продукты и материалы</option>
+            <option value="Продажи">Продажи</option>
+            <option value="Другое">Другое</option>
+          </select>
+          <input id="product" placeholder="Продукт (необязательно)" class="p-2 border rounded">
+          <input id="quantity" type="number" placeholder="Количество" class="p-2 border rounded">
+          <input id="client" placeholder="Клиент (необязательно)" class="p-2 border rounded">
+          <input id="description" placeholder="Комментарий" class="p-2 border rounded md:col-span-2">
+          <input id="receipt" type="file" accept="image/*,.pdf" class="p-2 border rounded md:col-span-2">
+        </div>
+        <button onclick="addEntry()" class="mt-4 bg-pink-600 text-white px-6 py-2 rounded-lg font-medium">Сохранить</button>
+      </div>
+
+      <!-- Entries List -->
+      <div class="card p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="font-semibold">Все записи</h2>
+          <select id="filter-type" onchange="loadEntries()" class="p-1 border rounded text-sm">
+            <option value="all">Все</option>
+            <option value="expense">Только затраты</option>
+            <option value="sale">Только продажи</option>
+          </select>
+        </div>
+        <div id="entries-list" class="space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== НАСТРОЙКИ SUPABASE (замените на свои) =====
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // например https://xxxxx.supabase.co
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    // ================================================
+
+    let supabase = null;
+    let currentUser = null;
+
+    function initSupabase() {
+      if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || !SUPABASE_URL) {
+        document.getElementById('auth-message').textContent = 'Настройте Supabase URL и ключ в коде (index.html)';
+        document.getElementById('auth-message').classList.remove('hidden');
+        return false;
+      }
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return true;
+    }
+
+    async function checkAuth() {
+      if (!supabase) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        currentUser = user;
+        showMain();
+        loadEntries();
+      }
+    }
+
+    function showMain() {
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('main-screen').classList.remove('hidden');
+      document.getElementById('user-email').textContent = currentUser?.email || '';
+      document.getElementById('date').value = new Date().toISOString().split('T')[0];
+    }
+
+    async function signIn() {
+      if (!initSupabase()) return;
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        document.getElementById('auth-message').textContent = error.message;
+        document.getElementById('auth-message').classList.remove('hidden');
+        return;
+      }
+      currentUser = data.user;
+      showMain();
+      loadEntries();
+    }
+
+    async function signUp() {
+      if (!initSupabase()) return;
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        document.getElementById('auth-message').textContent = error.message;
+        document.getElementById('auth-message').classList.remove('hidden');
+        return;
+      }
+      alert('Регистрация успешна! Проверьте почту для подтверждения (если требуется) или сразу войдите.');
+    }
+
+    async function signOut() {
+      if (supabase) await supabase.auth.signOut();
+      location.reload();
+    }
+
+    async function addEntry() {
+      if (!supabase || !currentUser) return alert('Нет подключения');
+      const type = document.getElementById('entry-type').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      if (!amount || amount <= 0) return alert('Введите корректную сумму');
+
+      const entry = {
+        user_id: currentUser.id,
+        user_email: currentUser.email,
+        type,
+        amount,
+        date: document.getElementById('date').value,
+        category: document.getElementById('category').value,
+        product: document.getElementById('product').value || null,
+        quantity: document.getElementById('quantity').value ? parseInt(document.getElementById('quantity').value) : null,
+        client: document.getElementById('client').value || null,
+        description: document.getElementById('description').value || null,
+        created_at: new Date().toISOString()
+      };
+
+      // Receipt upload
+      const fileInput = document.getElementById('receipt');
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const fileName = `${currentUser.id}/${Date.now()}_${file.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('receipts')
+          .upload(fileName, file);
+        if (uploadError) {
+          alert('Ошибка загрузки квитанции: ' + uploadError.message);
+        } else {
+          entry.receipt_path = fileName;
+        }
+      }
+
+      const { error } = await supabase.from('entries').insert(entry);
+      if (error) {
+        alert('Ошибка сохранения: ' + error.message);
+        return;
+      }
+
+      // Clear form
+      document.getElementById('amount').value = '';
+      document.getElementById('product').value = '';
+      document.getElementById('quantity').value = '';
+      document.getElementById('client').value = '';
+      document.getElementById('description').value = '';
+      fileInput.value = '';
+      loadEntries();
+    }
+
+    async function loadEntries() {
+      if (!supabase) return;
+      const filter = document.getElementById('filter-type').value;
+      let query = supabase.from('entries').select('*').order('date', { ascending: false });
+      if (filter !== 'all') query = query.eq('type', filter);
+
+      const { data, error } = await query;
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      const list = document.getElementById('entries-list');
+      list.innerHTML = '';
+
+      let totalExp = 0, totalSales = 0;
+      data.forEach(e => {
+        if (e.type === 'expense') totalExp += e.amount;
+        else totalSales += e.amount;
+
+        const div = document.createElement('div');
+        div.className = 'border-b pb-3 last:border-0';
+        const color = e.type === 'expense' ? 'text-red-600' : 'text-green-600';
+        const sign = e.type === 'expense' ? '-' : '+';
+        div.innerHTML = `
+          <div class="flex justify-between">
+            <div>
+              <span class="font-medium">${e.category}</span>
+              <span class="text-xs text-gray-500 ml-2">${e.date}</span>
+              <span class="text-xs text-gray-400 ml-2">${e.user_email.split('@')[0]}</span>
+            </div>
+            <div class="font-bold ${color}">${sign}${e.amount.toFixed(2)} €</div>
+          </div>
+          ${e.product ? `<div class="text-sm text-gray-600">Продукт: ${e.product} ${e.quantity ? '× ' + e.quantity : ''}</div>` : ''}
+          ${e.client ? `<div class="text-sm text-gray-600">Клиент: ${e.client}</div>` : ''}
+          ${e.description ? `<div class="text-sm text-gray-500">${e.description}</div>` : ''}
+          ${e.receipt_path ? `<div class="text-xs text-blue-600 mt-1"><i class="fa fa-file"></i> Квитанция загружена</div>` : ''}
+        `;
+        list.appendChild(div);
+      });
+
+      document.getElementById('total-expenses').textContent = totalExp.toFixed(2) + ' €';
+      document.getElementById('total-sales').textContent = totalSales.toFixed(2) + ' €';
+      const profit = totalSales - totalExp;
+      const profitEl = document.getElementById('total-profit');
+      profitEl.textContent = profit.toFixed(2) + ' €';
+      profitEl.className = 'text-2xl font-bold ' + (profit >= 0 ? 'text-green-600' : 'text-red-600');
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (initSupabase()) {
+        await checkAuth();
+      }
+    });
+  </script>
+</body>
+</html>
