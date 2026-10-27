@@ -18,7 +18,7 @@
       <div class="card p-6 max-w-md mx-auto">
         <h1 class="text-2xl font-bold text-center text-pink-600 mb-2">BioWay Finance</h1>
         <p class="text-center text-gray-600 mb-6">Учёт затрат и прибыли клуба</p>
-        <div id="auth-message" class="text-sm text-red-600 mb-3 hidden"></div>
+        <div id="auth-message" class="text-sm text-red-600 mb-3"></div>
         <input id="email" type="email" placeholder="Email" class="w-full p-3 border rounded-lg mb-3">
         <input id="password" type="password" placeholder="Пароль" class="w-full p-3 border rounded-lg mb-4">
         <button id="loginBtn" class="w-full bg-pink-600 text-white py-3 rounded-lg font-medium mb-2">Войти</button>
@@ -99,44 +99,41 @@
     let currentUser = null;
 
     function showMessage(msg) {
-      const el = document.getElementById('auth-message');
-      el.textContent = msg;
-      el.classList.remove('hidden');
+      document.getElementById('auth-message').textContent = msg;
     }
 
-    function initSupabase() {
-      try {
-        if (!window.supabase) {
-          showMessage('Библиотека Supabase не загрузилась. Обновите страницу.');
-          return false;
-        }
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        return true;
-      } catch (e) {
-        showMessage('Ошибка подключения: ' + e.message);
-        return false;
+    function getClient() {
+      if (!window.supabase) {
+        showMessage('Библиотека Supabase не загрузилась');
+        return null;
       }
+      if (!supabase) {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+      return supabase;
     }
 
     async function signUp() {
-      if (!initSupabase()) return;
+      const client = getClient();
+      if (!client) return;
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
       if (!email || !password) return showMessage('Введите email и пароль');
       if (password.length < 6) return showMessage('Пароль должен быть минимум 6 символов');
 
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await client.auth.signUp({ email, password });
       if (error) return showMessage(error.message);
       alert('Регистрация успешна! Проверьте почту (включая спам) и подтвердите email, затем войдите.');
     }
 
     async function signIn() {
-      if (!initSupabase()) return;
+      const client = getClient();
+      if (!client) return;
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
       if (!email || !password) return showMessage('Введите email и пароль');
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
       if (error) return showMessage(error.message);
       currentUser = data.user;
       showMain();
@@ -245,24 +242,12 @@
       profitEl.className = 'text-2xl font-bold ' + (profit >= 0 ? 'text-green-600' : 'text-red-600');
     }
 
-    document.addEventListener('DOMContentLoaded', async () => {
-      document.getElementById('regBtn').addEventListener('click', signUp);
-      document.getElementById('loginBtn').addEventListener('click', signIn);
-      document.getElementById('logoutBtn').addEventListener('click', signOut);
-      document.getElementById('saveBtn').addEventListener('click', addEntry);
-      document.getElementById('filter-type').addEventListener('change', loadEntries);
-
-      if (initSupabase()) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            currentUser = user;
-            showMain();
-            loadEntries();
-          }
-        } catch (e) {}
-      }
-    });
+    // Подключаем кнопки сразу
+    document.getElementById('regBtn').onclick = signUp;
+    document.getElementById('loginBtn').onclick = signIn;
+    document.getElementById('logoutBtn').onclick = signOut;
+    document.getElementById('saveBtn').onclick = addEntry;
+    document.getElementById('filter-type').onchange = loadEntries;
   </script>
 </body>
 </html>
