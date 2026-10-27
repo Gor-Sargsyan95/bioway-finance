@@ -3,247 +3,142 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BioWay Finance — Учёт затрат и прибыли</title>
+  <title>BioWay Finance</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { font-family: system-ui, -apple-system, sans-serif; }
-    .card { background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    body { font-family: system-ui, sans-serif; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-  <div id="app" class="max-w-4xl mx-auto p-4">
-    <div id="auth-screen" class="mt-10">
-      <div class="card p-6 max-w-md mx-auto">
-        <h1 class="text-2xl font-bold text-center text-pink-600 mb-2">BioWay Finance</h1>
-        <p class="text-center text-gray-600 mb-6">Учёт затрат и прибыли клуба</p>
-        <div id="auth-message" class="text-sm text-red-600 mb-3"></div>
-        <input id="email" type="email" placeholder="Email" class="w-full p-3 border rounded-lg mb-3">
-        <input id="password" type="password" placeholder="Пароль" class="w-full p-3 border rounded-lg mb-4">
-        <button onclick="doSignIn()" class="w-full bg-pink-600 text-white py-3 rounded-lg font-medium mb-2">Войти</button>
-        <button onclick="doSignUp()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium">Зарегистрироваться</button>
-        <p class="text-xs text-center text-gray-500 mt-4">Для 3 партнёров. Каждый регистрируется со своим email.</p>
-      </div>
+<body class="bg-gray-100 min-h-screen p-4">
+  <div class="max-w-md mx-auto mt-10 card p-6">
+    <h1 class="text-2xl font-bold text-center text-pink-600 mb-2">BioWay Finance</h1>
+    <p class="text-center text-gray-600 mb-6">Учёт затрат и прибыли</p>
+    <div id="msg" class="text-sm text-red-600 mb-3"></div>
+    <input id="email" type="email" placeholder="Email" class="w-full p-3 border rounded mb-3">
+    <input id="password" type="password" placeholder="Пароль" class="w-full p-3 border rounded mb-4">
+    <button onclick="register()" class="w-full bg-blue-600 text-white py-3 rounded mb-2 font-medium">Зарегистрироваться</button>
+    <button onclick="login()" class="w-full bg-pink-600 text-white py-3 rounded font-medium">Войти</button>
+  </div>
+
+  <div id="main" class="hidden max-w-4xl mx-auto mt-6">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold text-pink-600">BioWay Finance</h2>
+      <button onclick="logout()" class="text-sm text-gray-600">Выйти</button>
     </div>
-
-    <div id="main-screen" class="hidden">
-      <header class="flex justify-between items-center mb-6">
-        <div>
-          <h1 class="text-2xl font-bold text-pink-600">BioWay Finance</h1>
-          <p class="text-sm text-gray-500" id="user-email"></p>
-        </div>
-        <button onclick="doSignOut()" class="text-sm text-gray-600 hover:text-red-600">Выйти</button>
-      </header>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="card p-4">
-          <div class="text-sm text-gray-500">Общие затраты</div>
-          <div class="text-2xl font-bold text-red-600" id="total-expenses">0 €</div>
-        </div>
-        <div class="card p-4">
-          <div class="text-sm text-gray-500">Общие продажи</div>
-          <div class="text-2xl font-bold text-green-600" id="total-sales">0 €</div>
-        </div>
-        <div class="card p-4">
-          <div class="text-sm text-gray-500">Прибыль</div>
-          <div class="text-2xl font-bold" id="total-profit">0 €</div>
-        </div>
-      </div>
-
-      <div class="card p-5 mb-6">
-        <h2 class="font-semibold mb-4">Добавить запись</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <select id="entry-type" class="p-2 border rounded">
-            <option value="expense">Затрата</option>
-            <option value="sale">Продажа / Доход</option>
-          </select>
-          <input id="amount" type="number" step="0.01" placeholder="Сумма (€)" class="p-2 border rounded">
-          <input id="date" type="date" class="p-2 border rounded">
-          <select id="category" class="p-2 border rounded">
-            <option value="Билеты">Билеты</option>
-            <option value="Подарки">Подарки</option>
-            <option value="Еда">Еда</option>
-            <option value="Продукты и материалы">Продукты и материалы</option>
-            <option value="Продажи">Продажи</option>
-            <option value="Другое">Другое</option>
-          </select>
-          <input id="product" placeholder="Продукт (необязательно)" class="p-2 border rounded">
-          <input id="quantity" type="number" placeholder="Количество" class="p-2 border rounded">
-          <input id="client" placeholder="Клиент (необязательно)" class="p-2 border rounded">
-          <input id="description" placeholder="Комментарий" class="p-2 border rounded md:col-span-2">
-          <input id="receipt" type="file" accept="image/*,.pdf" class="p-2 border rounded md:col-span-2">
-        </div>
-        <button onclick="doAddEntry()" class="mt-4 bg-pink-600 text-white px-6 py-2 rounded-lg font-medium">Сохранить</button>
-      </div>
-
-      <div class="card p-5">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="font-semibold">Все записи</h2>
-          <select id="filter-type" onchange="doLoadEntries()" class="p-1 border rounded text-sm">
-            <option value="all">Все</option>
-            <option value="expense">Только затраты</option>
-            <option value="sale">Только продажи</option>
-          </select>
-        </div>
-        <div id="entries-list" class="space-y-3"></div>
-      </div>
+    <div class="grid grid-cols-3 gap-3 mb-6">
+      <div class="card p-3 text-center"><div class="text-xs text-gray-500">Затраты</div><div id="exp" class="text-xl font-bold text-red-600">0</div></div>
+      <div class="card p-3 text-center"><div class="text-xs text-gray-500">Продажи</div><div id="sales" class="text-xl font-bold text-green-600">0</div></div>
+      <div class="card p-3 text-center"><div class="text-xs text-gray-500">Прибыль</div><div id="profit" class="text-xl font-bold">0</div></div>
     </div>
+    <div class="card p-4 mb-4">
+      <select id="type" class="w-full p-2 border rounded mb-2"><option value="expense">Затрата</option><option value="sale">Продажа</option></select>
+      <input id="amount" type="number" step="0.01" placeholder="Сумма" class="w-full p-2 border rounded mb-2">
+      <input id="date" type="date" class="w-full p-2 border rounded mb-2">
+      <select id="category" class="w-full p-2 border rounded mb-2">
+        <option>Билеты</option><option>Подарки</option><option>Еда</option><option>Продукты и материалы</option><option>Продажи</option><option>Другое</option>
+      </select>
+      <input id="product" placeholder="Продукт" class="w-full p-2 border rounded mb-2">
+      <input id="client" placeholder="Клиент" class="w-full p-2 border rounded mb-2">
+      <input id="desc" placeholder="Комментарий" class="w-full p-2 border rounded mb-2">
+      <input id="receipt" type="file" class="w-full mb-2">
+      <button onclick="saveEntry()" class="w-full bg-pink-600 text-white py-2 rounded">Сохранить</button>
+    </div>
+    <div id="list" class="card p-4 space-y-2"></div>
   </div>
 
   <script>
-    const SUPABASE_URL = 'https://loovgtthxkehwqegkmmi.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_grMpbwsdZWvBjagEwFfhPQ_OEA3B2OE';
+    const URL = 'https://loovgtthxkehwqegkmmi.supabase.co';
+    const KEY = 'sb_publishable_grMpbwsdZWvBjagEwFfhPQ_OEA3B2OE';
+    let db = null;
+    let user = null;
 
-    let supabase = null;
-    let currentUser = null;
+    function msg(t) { document.getElementById('msg').textContent = t || ''; }
 
-    function showMessage(msg) {
-      document.getElementById('auth-message').textContent = msg || '';
+    function client() {
+      if (!window.supabase) { msg('Библиотека не загрузилась'); return null; }
+      if (!db) db = window.supabase.createClient(URL, KEY);
+      return db;
     }
 
-    function getClient() {
-      if (!window.supabase) {
-        showMessage('Библиотека Supabase не загрузилась. Обновите страницу.');
-        return null;
-      }
-      if (!supabase) {
-        try {
-          supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        } catch (e) {
-          showMessage('Ошибка создания клиента: ' + e.message);
-          return null;
-        }
-      }
-      return supabase;
-    }
-
-    async function doSignUp() {
-      const client = getClient();
-      if (!client) return;
+    async function register() {
+      const c = client(); if (!c) return;
       const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      if (!email || !password) return showMessage('Введите email и пароль');
-      if (password.length < 6) return showMessage('Пароль должен быть минимум 6 символов');
-
-      const { error } = await client.auth.signUp({ email, password });
-      if (error) return showMessage(error.message);
-      alert('Регистрация успешна! Проверьте почту (включая спам) и подтвердите email, затем войдите.');
+      const pass = document.getElementById('password').value;
+      if (!email || pass.length < 6) return msg('Введите email и пароль (мин. 6 символов)');
+      const { error } = await c.auth.signUp({ email, password: pass });
+      if (error) return msg(error.message);
+      alert('Регистрация успешна! Проверьте почту и подтвердите, затем войдите.');
     }
 
-    async function doSignIn() {
-      const client = getClient();
-      if (!client) return;
+    async function login() {
+      const c = client(); if (!c) return;
       const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      if (!email || !password) return showMessage('Введите email и пароль');
-
-      const { data, error } = await client.auth.signInWithPassword({ email, password });
-      if (error) return showMessage(error.message);
-      currentUser = data.user;
-      showMain();
-      doLoadEntries();
-    }
-
-    function showMain() {
-      document.getElementById('auth-screen').classList.add('hidden');
-      document.getElementById('main-screen').classList.remove('hidden');
-      document.getElementById('user-email').textContent = currentUser?.email || '';
+      const pass = document.getElementById('password').value;
+      if (!email || !pass) return msg('Введите email и пароль');
+      const { data, error } = await c.auth.signInWithPassword({ email, password: pass });
+      if (error) return msg(error.message);
+      user = data.user;
+      document.querySelector('.max-w-md').classList.add('hidden');
+      document.getElementById('main').classList.remove('hidden');
       document.getElementById('date').value = new Date().toISOString().split('T')[0];
+      load();
     }
 
-    async function doSignOut() {
-      if (supabase) await supabase.auth.signOut();
+    async function logout() {
+      if (db) await db.auth.signOut();
       location.reload();
     }
 
-    async function doAddEntry() {
-      if (!supabase || !currentUser) return alert('Нет подключения');
-      const type = document.getElementById('entry-type').value;
+    async function saveEntry() {
+      if (!db || !user) return alert('Нет входа');
       const amount = parseFloat(document.getElementById('amount').value);
-      if (!amount || amount <= 0) return alert('Введите корректную сумму');
-
+      if (!amount) return alert('Введите сумму');
       const entry = {
-        user_id: currentUser.id,
-        user_email: currentUser.email,
-        type,
+        user_id: user.id,
+        user_email: user.email,
+        type: document.getElementById('type').value,
         amount,
         date: document.getElementById('date').value,
         category: document.getElementById('category').value,
         product: document.getElementById('product').value || null,
-        quantity: document.getElementById('quantity').value ? parseInt(document.getElementById('quantity').value) : null,
         client: document.getElementById('client').value || null,
-        description: document.getElementById('description').value || null,
+        description: document.getElementById('desc').value || null,
         created_at: new Date().toISOString()
       };
-
-      const fileInput = document.getElementById('receipt');
-      if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        const fileName = `${currentUser.id}/${Date.now()}_${file.name}`;
-        const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
-        if (uploadError) {
-          alert('Ошибка загрузки квитанции: ' + uploadError.message);
-        } else {
-          entry.receipt_path = fileName;
-        }
+      const file = document.getElementById('receipt').files[0];
+      if (file) {
+        const name = user.id + '/' + Date.now() + '_' + file.name;
+        const { error } = await db.storage.from('receipts').upload(name, file);
+        if (!error) entry.receipt_path = name;
       }
-
-      const { error } = await supabase.from('entries').insert(entry);
-      if (error) return alert('Ошибка сохранения: ' + error.message);
-
+      const { error } = await db.from('entries').insert(entry);
+      if (error) return alert(error.message);
       document.getElementById('amount').value = '';
       document.getElementById('product').value = '';
-      document.getElementById('quantity').value = '';
       document.getElementById('client').value = '';
-      document.getElementById('description').value = '';
-      fileInput.value = '';
-      doLoadEntries();
+      document.getElementById('desc').value = '';
+      document.getElementById('receipt').value = '';
+      load();
     }
 
-    async function doLoadEntries() {
-      if (!supabase) return;
-      const filter = document.getElementById('filter-type').value;
-      let query = supabase.from('entries').select('*').order('date', { ascending: false });
-      if (filter !== 'all') query = query.eq('type', filter);
-
-      const { data, error } = await query;
-      if (error) return console.error(error);
-
-      const list = document.getElementById('entries-list');
+    async function load() {
+      if (!db) return;
+      const { data } = await db.from('entries').select('*').order('date', { ascending: false });
+      const list = document.getElementById('list');
       list.innerHTML = '';
-
-      let totalExp = 0, totalSales = 0;
+      let exp = 0, sales = 0;
       (data || []).forEach(e => {
-        if (e.type === 'expense') totalExp += e.amount;
-        else totalSales += e.amount;
-
-        const div = document.createElement('div');
-        div.className = 'border-b pb-3 last:border-0';
-        const color = e.type === 'expense' ? 'text-red-600' : 'text-green-600';
-        const sign = e.type === 'expense' ? '-' : '+';
-        div.innerHTML = `
-          <div class="flex justify-between">
-            <div>
-              <span class="font-medium">${e.category}</span>
-              <span class="text-xs text-gray-500 ml-2">${e.date}</span>
-              <span class="text-xs text-gray-400 ml-2">${(e.user_email || '').split('@')[0]}</span>
-            </div>
-            <div class="font-bold ${color}">${sign}${Number(e.amount).toFixed(2)} €</div>
-          </div>
-          ${e.product ? `<div class="text-sm text-gray-600">Продукт: ${e.product} ${e.quantity ? '× ' + e.quantity : ''}</div>` : ''}
-          ${e.client ? `<div class="text-sm text-gray-600">Клиент: ${e.client}</div>` : ''}
-          ${e.description ? `<div class="text-sm text-gray-500">${e.description}</div>` : ''}
-          ${e.receipt_path ? `<div class="text-xs text-blue-600 mt-1">Квитанция загружена</div>` : ''}
-        `;
-        list.appendChild(div);
+        if (e.type === 'expense') exp += e.amount; else sales += e.amount;
+        const d = document.createElement('div');
+        d.className = 'border-b pb-2';
+        d.innerHTML = '<div class="flex justify-between"><span>' + e.category + ' <small class="text-gray-400">' + e.date + '</small></span><b class="' + (e.type==='expense'?'text-red-600':'text-green-600') + '">' + (e.type==='expense'?'-':'+') + e.amount.toFixed(2) + '</b></div>';
+        list.appendChild(d);
       });
-
-      document.getElementById('total-expenses').textContent = totalExp.toFixed(2) + ' €';
-      document.getElementById('total-sales').textContent = totalSales.toFixed(2) + ' €';
-      const profit = totalSales - totalExp;
-      const profitEl = document.getElementById('total-profit');
-      profitEl.textContent = profit.toFixed(2) + ' €';
-      profitEl.className = 'text-2xl font-bold ' + (profit >= 0 ? 'text-green-600' : 'text-red-600');
+      document.getElementById('exp').textContent = exp.toFixed(2);
+      document.getElementById('sales').textContent = sales.toFixed(2);
+      document.getElementById('profit').textContent = (sales - exp).toFixed(2);
     }
   </script>
 </body>
